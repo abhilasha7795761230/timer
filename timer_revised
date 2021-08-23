@@ -1,0 +1,78 @@
+module timi0(overflow2,overflow,THR,TLR,thr,tlr,th,tl,mo,strt,clk);//main module
+output overflow,overflow2;
+  output [7:0]THR,TLR;
+input th,tl,mo,strt,clk;
+  input [7:0]thr;
+  input [7:0]tlr;
+wire en1,en2,ov1,ov2,clk2;
+contrlmod enable1(en1,th,tl, mo);//submodule call
+contrlmod enable2(en2,tl, th, mo);//submodule call
+counter c1(ov1,TLR,tlr,clk,strt,en1);//submodule call
+multplexclk mulclock(clk2,TLR[1],clk,mo);//submodule call
+counter c2(ov2,THR,thr,clk2,strt,en2);//submodule call
+multplexclk mulover(overflow,ov2,ov1,mo);//submodule callS
+assign overflow2=ov2;
+endmodule
+module multplexclk(output reg y,input in1,in0,sel);//submodule mulclock
+always@(in1,in0,sel)
+y=((in0 &(~sel))|(in1 & (sel)));
+endmodule
+
+module contrlmod(en, a, b, c);//submodule contrlmod
+output en;
+input a, b, c;
+wire cnt,ou;
+not n1(cnt, c);
+or o1(ou, cnt, a);
+and a2(en, ou, b);
+endmodule
+
+module counter(ov,register,value,clki,st,en);//submodule for THR TLR
+output reg [7:0]register;
+input [7:0]value;
+output reg ov;
+input clki,st,en;
+always@(posedge clki,value)
+begin
+if(en & (~st))
+begin
+register =value;
+ov=0;
+end
+if(en & st)
+begin
+register<=register-1;
+if(register == 0)
+begin
+ov =1;
+end
+end
+end
+endmodule
+//test_bench
+module tb;
+reg th,tl,mo,strt,clk;
+  reg [7:0]thr;
+  reg [7:0]tlr;
+  wire [7:0]THR;
+  wire [7:0]TLR;
+wire overflow,overflow2;
+timi0 t0(overflow2,overflow,THR,TLR,thr,tlr,th,tl,mo,strt,clk);
+initial begin
+clk=1'b0;
+forever #5 clk=~clk;
+end
+initial begin
+$display("thr tlr th tl mo strt clock THR TLR overflow overflow2");
+  $monitor("%b %b %b %b %b %b %b %b %b %b %b  ",thr,tlr,th,tl,mo,strt, clk,THR,TLR,overflow,overflow2);
+{th,tl,mo,strt}=4'b1100;
+#10
+thr=8'b11111111;
+tlr=8'b11111111;
+#10
+{th,tl,mo,strt}=4'b1101;
+#8000//strt=0;
+#1000
+$finish;
+end
+endmodule
